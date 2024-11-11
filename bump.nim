@@ -4,6 +4,7 @@ import std/osproc
 import std/strutils
 import std/strformat
 import std/nre
+import std/streams
 
 from std/macros import nil
 
@@ -221,19 +222,21 @@ proc withCrazySpaces*(version: Version; line = ""): string =
 proc capture*(exe: string; args: seq[string];
               options: set[ProcessOption]): tuple[output: string; ok: bool] =
   ## capture output of a command+args and indicate apparent success
-  var
-    command = findExe(exe)
-  if command == "":
-    result = (output: &"unable to find executable `{exe}` in path", ok: false)
-    warn result.output
-    return
-
-  # we apparently need to escape arguments when using this subprocess form
-  command &= " " & quoteShellCommand(args)
-  debug command  # let's take a look at those juicy escape sequences
+  let options = options - {poEvalCommand} + {poUsePath}
+  assert poEvalCommand notin options
+  let p =
+    try:
+      startProcess(
+        command = exe,
+        args = args,
+        options = options,
+      )
+    except IOError, OSError:
+      return (output: getCurrentExceptionMsg(), ok: false)
 
   # run it and get the output to construct our return value
-  let (output, exit) = execCmdEx(command, options)
+  let exit = p.waitForExit
+  let output = p.outputStream.readAll
   result = (output: output, ok: exit == 0)
 
   # provide a simplified summary at appropriate logging levels
