@@ -1,4 +1,8 @@
 deps
 nimblemeta.json
 bin/
+config.nims
 nim.cfg
+nimble.develop
+nimble.paths
+nimbledeps
